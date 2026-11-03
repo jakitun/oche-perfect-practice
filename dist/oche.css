@@ -56,3 +56,18 @@ button.quiet-action{justify-self:center;background:none;color:#bcbcbc}
 .race-stats strong{font-size:1.4rem}
 .race-stats span{font-size:.8rem;color:#bcbcbc}
 progress{width:100%;height:8px;accent-color:var(--accent)}
+
+:root{--accent:#c7f76b;--line:#282c26}
+header,.tabs{border-color:var(--line)}
+.card{position:relative;overflow:hidden;padding:18px 42px 18px 18px;background:linear-gradient(115deg,#1c2416,#111310 70%);border-color:#303829}
+.card::after{content:'↗';position:absolute;right:16px;top:18px;color:var(--accent)}
+.practice-hero{border-radius:22px;border:1px solid #282e25;background:radial-gradient(ellipse at top,#202a19,#0d100c 72%);padding:18px 10px}
+.practice-hero h1{letter-spacing:-.08em}
+.practice-panel{border-color:var(--line)}
+.mode-switch{gap:4px;padding:4px;border-radius:15px;background:#10120f}
+.mode-switch button{font-size:.83rem;min-height:44px;padding-inline:5px;border-color:transparent}
+.mode-switch button.selected{background:#26331d;border-color:#455a31}
+.hint-strip{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border-radius:12px;background:#182014;color:var(--accent)}
+.hint-strip span{font-variant-numeric:tabular-nums}
+.race-pad button:active,.score-grid button:active,.dart-grid button:active{background:var(--accent);color:#111}
+button.counter-button{min-height:clamp(104px,22vh,180px);font-size:clamp(1.7rem,8vw,3rem)}

@@ -7,8 +7,9 @@ let undo = [];
 let multiplier = 'S';
 let typed = '';
 let inputMode = 'total';
+const gameFor = (variant, target = 121) => variant === "ladder" ? Darts.fresh(target, 3) : variant === "301" ? Darts.fresh(301, Number.MAX_SAFE_INTEGER) : Darts.fresh();
 const freshExam = variant => ({
-  id: crypto.randomUUID(), start: null, variant, legs: [], game: Darts.fresh(), assisted: false
+  id: crypto.randomUUID(), start: null, variant, legs: [], game: gameFor(variant), target: 121, assisted: false
 });
 let exam = read('oche-active-perfect') || (() => {
   const legacy = read('oche-perfect-v1')?.session;
@@ -65,8 +66,8 @@ function renderPractice(mode) {
 }
 
 function examTerminal() {
-  return exam.game.status === 'won' ||
-    (exam.game.status === 'lost' && (exam.variant === 'solo' || exam.legs.length === 4));
+  return exam.variant !== 'ladder' && (exam.game.status === 'won' ||
+    (exam.game.status === 'lost' && (exam.variant === 'solo' || exam.legs.length === 4)));
 }
 
 function examRecord(result, complete) {
@@ -74,7 +75,8 @@ function examRecord(result, complete) {
   return {
     id: exam.id, mode: 'perfect', result, complete, variant: exam.variant,
     assisted: exam.assisted, durationMs: exam.start ? Date.now() - exam.start : null,
-    visits: sum(legs.map(leg => leg.visits.length)), attempts: legs.length
+    visits: sum(legs.map(leg => leg.visits.length)), attempts: legs.length,
+    highestCheckout: exam.variant === 'ladder' ? Math.max(0, ...legs.filter(leg => leg.status === 'won').map(leg => leg.visits[0].start)) : undefined
   };
 }
 
@@ -120,19 +122,22 @@ function perfectScreen() {
   const game = exam.game;
   const hints = !!read('oche-hints');
   const screen = group('practice-stack', hero(
-    exam.variant === 'exam' ? `MOCK EXAM · ATTEMPT ${exam.legs.length + 1} / 5` : 'SINGLE LEG · 501',
+    exam.variant === 'exam' ? `MOCK EXAM · ATTEMPT ${exam.legs.length + 1} / 5` : exam.variant === 'ladder' ? `121 CHECKOUT · TARGET ${exam.target}` : `SINGLE LEG · ${exam.variant === '301' ? '301' : '501'}`,
     game.remaining,
-    `Round ${game.round} / 8 · Open in / double out · Split bull`
+    `Round ${game.round}${exam.variant === "301" ? "" : " / " + (game.maxRounds ?? 8)} · Open in / double out · Split bull`
   ));
+  const variants = [['exam','501 Exam'],['solo','501 Solo'],['301','301'],['ladder','121 Checkout']];
+  screen.prepend(group('control-row mode-switch', ...variants.map(([variant,label]) => control(label, () => { if (variant !== exam.variant) startExam(variant); }, variant === exam.variant ? 'selected' : ''))));
   if (game.status !== 'playing') {
     screen.append(group('practice-panel',
       element('h2', game.status === 'won' ? 'Cleared' : examTerminal() ? 'Practice complete' : 'Attempt ended'),
-      control(examTerminal() ? 'New session' : 'Next attempt', () => {
+      control(examTerminal() ? 'New session' : exam.variant === 'ladder' ? `Next · ${game.status === 'won' ? exam.target + 1 : 121}` : 'Next attempt', () => {
         if (examTerminal()) startExam(exam.variant);
         else {
           undo.push(structuredClone(exam));
           exam.legs.push(game);
-          exam.game = Darts.fresh();
+          if (exam.variant === 'ladder') exam.target = game.status === 'won' ? exam.target + 1 : 121;
+          exam.game = gameFor(exam.variant, exam.target);
           saveExam();
         }
       }, 'primary')));
@@ -145,8 +150,9 @@ function perfectScreen() {
       control('Each dart', () => { inputMode = 'dart'; }, inputMode === 'dart' ? 'selected' : '')
     ));
     if (hints) {
-      const suggestion = Darts.arrange(game.remaining, 3 - game.dart).labels.join(' · ');
-      screen.append(element('p', `Arrange · ${suggestion || '—'}`));
+      const hint = Darts.arrange(game.remaining, 3 - game.dart);
+      const labels = hint.labels.join(' · ');
+      screen.append(group('hint-strip', element('strong', hint.type === 'checkout' ? 'Checkout' : 'Setup'), element('span', hint.leave ? `${labels} → ${hint.leave} left` : labels || '—')));
     }
     if (inputMode === 'total') screen.append(totalPad(game, hints));
     else screen.append(dartPad(game, hints));
@@ -161,7 +167,11 @@ function perfectScreen() {
         saveExam();
       }
     }),
-    control(exam.variant === 'exam' ? 'Single leg' : 'Mock exam', () => startExam(exam.variant === 'exam' ? 'solo' : 'exam')),
+    ...(exam.variant === 'ladder' ? [control('Save ladder', () => {
+      if (!exam.legs.length && !game.visits.length) return;
+      archive(examRecord('Ladder finished', true));
+      exam = freshExam('ladder'); undo = []; typed = ''; saveExam();
+    })] : []),
     control('Restart', () => startExam(exam.variant))
   ));
   if (game.visits.length) {
@@ -217,16 +227,16 @@ function markScreen() {
   const index = mark?.splits.length || 0;
   const finished = index === phases.length;
   const target = phases[index];
-  const elapsed = finished ? sum(mark.splits) : mark ? Date.now() - mark.start : 0;
+  const elapsed = finished ? sum(mark.splits) : mark ? (mark.pausedAt || Date.now()) - mark.start : 0;
   const screen = group('practice-stack', hero(
     finished ? '13 / 13 COMPLETE' : `PHASE ${index + 1} / 13`,
     finished ? 'Finished' : target.startsWith('Bull') ? 'Bull' : target,
-    finished ? 'Bull & Mark' : target.startsWith('Bull') ? 'Hit 2 bulls' : `5 marks · T${target} + O${target} + O${target}`
+    finished ? 'Bull & Mark' : target.startsWith('Bull') ? 'Hit 2 bulls' : 'Hit 5 marks'
   ));
   const timer = element('strong', duration(elapsed));
   timer.id = 'mark-clock';
   screen.append(group('practice-panel drill-clock', element('span', 'SESSION TIME'), timer));
-  screen.append(control(finished ? 'New drill' : !mark ? 'Start drill' : index === phases.length - 1 ? 'Finish drill' : 'Next phase', () => {
+  const advance = control(finished ? 'New drill' : !mark ? 'Start drill' : index === phases.length - 1 ? 'Finish drill' : 'Next phase', () => {
     const now = Date.now();
     if (!mark || finished) {
       mark = { id: crypto.randomUUID(), start: now, lap: now, splits: [] };
@@ -242,7 +252,17 @@ function markScreen() {
       });
     }
     storeValue('oche-active-mark', mark);
-  }, 'primary big-action'));
+  }, 'primary big-action');
+  advance.disabled = !!mark?.pausedAt;
+  screen.append(advance);
+  if (mark && !finished) screen.append(control(mark.pausedAt ? 'Resume timer' : 'Pause timer', () => {
+    const now = Date.now();
+    if (mark.pausedAt) {
+      const pausedFor = now - mark.pausedAt;
+      mark.start += pausedFor; mark.lap += pausedFor; delete mark.pausedAt;
+    } else mark.pausedAt = now;
+    storeValue('oche-active-mark', mark);
+  }));
   if (mark?.splits.length) {
     const splits = document.createElement('details');
     const times = document.createElement('dl');
@@ -261,7 +281,7 @@ function markScreen() {
 
 setInterval(() => {
   const clock = byId('mark-clock');
-  if (current === 'practice' && activeMode === 'mark' && clock && mark && mark.splits.length < phases.length) {
+  if (current === 'practice' && activeMode === 'mark' && clock && mark && !mark.pausedAt && mark.splits.length < phases.length) {
     clock.textContent = duration(Math.max(0, Date.now() - mark.start));
   }
 }, 100);
@@ -299,7 +319,25 @@ function saveRace() {
   storeValue('oche-active-race', race);
 }
 
+let counter = read('oche-active-counter') || { hits: 0, start: null };
+let raceView = 'visits';
+function counterScreen() {
+  const save = () => storeValue('oche-active-counter', counter);
+  const screen = group('practice-stack', hero('BULL COUNTER', counter.hits, 'Tap once for each bull'),
+    control('+1 Bull', () => { counter.start ||= Date.now(); counter.hits++; save(); }, 'primary big-action counter-button'));
+  const undo = control('Undo', () => { counter.hits--; save(); });
+  const end = control('Save & reset', () => {
+    archive({ id: crypto.randomUUID(), mode: 'race', variant: 'counter', result: 'Count saved', complete: true, hits: counter.hits, durationMs: Date.now() - counter.start });
+    counter = { hits: 0, start: null }; save();
+  });
+  undo.disabled = end.disabled = !counter.hits;
+  screen.append(group('control-row', undo, end));
+  return screen;
+}
+
 function raceScreen() {
+  const tabs = group('control-row mode-switch', ...[['visits','By visit'],['counter','Simple counter']].map(([view,label]) => control(label, () => { raceView = view; }, view === raceView ? 'selected' : '')));
+  if (raceView === 'counter') { const screen = counterScreen(); screen.prepend(tabs); return screen; }
   const target = race?.target || read('s_target') || 50;
   const rounds = race?.rounds || [];
   const hits = sum(rounds);
@@ -307,6 +345,7 @@ function raceScreen() {
     race?.end ? (hits >= target ? 'TARGET REACHED' : 'SESSION ENDED') : `RACE TO ${target}`,
     hits, `${Math.max(0, target - hits)} bulls to go`
   ));
+  screen.prepend(tabs);
   const progress = document.createElement('progress');
   progress.max = target;
   progress.value = hits;
@@ -329,7 +368,7 @@ function raceScreen() {
       if (sum(race.rounds) >= target) race.end = Date.now();
       saveRace();
       raceFeedback(n);
-    }, n === 3 ? 'primary' : ''))));
+    }))));
     const undoVisit = control('Undo visit', () => {
       race.rounds.pop();
       if (!race.rounds.length) race = null;

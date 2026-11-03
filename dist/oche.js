@@ -78,9 +78,11 @@ function showHistory(records) {
     summary.append(element('span', `${date} · ${session.result}`));
     row.append(summary);
     if (session.mode === 'perfect') {
-      row.append(element('p', `${session.variant === 'exam' ? 'Mock exam' : 'Single leg'} · ${session.attempts} attempts · ${session.visits} visits${session.assisted ? ' · Assisted' : ''}`));
+      row.append(element('p', `${({exam:'Mock exam',solo:'501 solo','301':'301 checkout',ladder:'121 ladder'})[session.variant] || 'Single leg'} · ${session.attempts} attempts · ${session.visits} visits${session.assisted ? ' · Assisted' : ''}`));
+      if (session.highestCheckout) row.append(element('p', `Highest checkout · ${session.highestCheckout}`));
     } else if (session.mode === 'race') {
-      row.append(element('p', `${session.hits}/${session.target} bulls · ${session.visits} visits · ${session.visits ? (session.hits / session.visits).toFixed(2) : '—'} BPV`));
+      if (session.variant === 'counter') row.append(element('p', `${session.hits} bulls · Simple counter`));
+      else row.append(element('p', `${session.hits}/${session.target} bulls · ${session.visits} visits · ${session.visits ? (session.hits / session.visits).toFixed(2) : '—'} BPV`));
       if (Number.isFinite(session.durationMs)) row.append(element('p', duration(session.durationMs)));
     } else {
       summary.append(element('span', duration(session.durationMs) + (session.durationMs === best ? ' · PB' : '')));
