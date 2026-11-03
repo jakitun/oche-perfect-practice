@@ -141,6 +141,46 @@ function showInsights(records) {
     card.append(element('strong', label), ...value.map(line => element('p', line)));
     return card;
   }));
+  const recent = complete.slice(0, 10);
+  if (recent.length) {
+    const card = element('article', '');
+    card.append(element('strong', 'PERFECT · Recent exams'));
+    const wins = recent.filter(s => s.result === 'Cleared').length;
+    card.append(element('p', `${wins}/${recent.length} cleared (${Math.round(100 * wins / recent.length)}%) · latest ${recent.length} completed exams`));
+    const trend = document.createElement('ol');
+    trend.className = 'insight-trend';
+    for (const session of [...recent].reverse()) {
+      const avg = Number.isFinite(session.points) && session.darts > 0
+        ? (3 * session.points / session.darts).toFixed(1) : '—';
+      const date = Number.isFinite(session.date) ? new Date(session.date).toLocaleDateString() : 'Unknown date';
+      const item = element('li', '');
+      item.append(element('span', `${date} · ${session.result}${session.assisted ? ' · Assisted' : ''}`), element('strong', avg));
+      trend.append(item);
+    }
+    card.append(element('p', 'Three-dart average · oldest to newest'), trend);
+    byId('metrics').append(card);
+  }
+  const timed = drills.filter(s => Number.isFinite(s.durationMs) && s.phaseTimes?.length === phases.length);
+  if (timed.length >= 2) {
+    const latest = timed[0];
+    const best = timed.reduce((a, b) => b.durationMs < a.durationMs ? b : a);
+    const card = element('article', '');
+    card.append(element('strong', 'Bull & Mark · Latest vs PB'));
+    const delta = ms => ms === 0 ? 'Even' : `${ms < 0 ? '−' : '+'}${duration(Math.abs(ms))}`;
+    card.append(element('p', `Latest ${duration(latest.durationMs)} · PB ${duration(best.durationMs)}`));
+    if (best === latest) card.append(element('p', 'Latest run is your PB.'));
+    const rows = document.createElement('dl');
+    rows.className = 'insight-trend split-trend';
+    latest.phaseTimes.forEach((lap, i) => {
+      const difference = lap.durationMs - best.phaseTimes[i].durationMs;
+      const value = element('dd', delta(difference));
+      value.className = difference > 0 ? 'slower' : difference < 0 ? 'faster' : '';
+      rows.append(element('dt', lap.target), value);
+    });
+    card.append(element('p', 'Time difference by lap'), rows);
+    byId('metrics').append(card);
+  }
+
 }
 
 

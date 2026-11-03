@@ -86,3 +86,11 @@ dialog{max-width:min(26rem,calc(100vw - 36px));border:1px solid var(--line);bord
 dialog::backdrop{background:#000b}
 dialog h2{margin-top:0}
 button.danger,[data-reset-history]{color:#ffaaa1}
+
+.insight-trend{list-style:none;padding:0;margin:12px 0 0;font-variant-numeric:tabular-nums}
+.insight-trend li{display:flex;justify-content:space-between;gap:10px;border-top:1px solid var(--line);padding:8px 0}
+.split-trend{gap:0}
+.split-trend>*{border-top:1px solid var(--line);padding:8px 0}
+.split-trend dd{text-align:right}
+.split-trend .faster{color:var(--accent)}
+.split-trend .slower{color:#ffaaa1}
