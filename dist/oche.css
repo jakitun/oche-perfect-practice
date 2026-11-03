@@ -62,7 +62,7 @@ header,.tabs{border-color:var(--line)}
 .card{position:relative;overflow:hidden;padding:18px 42px 18px 18px;background:linear-gradient(115deg,#1c2416,#111310 70%);border-color:#303829}
 .card::after{content:'↗';position:absolute;right:16px;top:18px;color:var(--accent)}
 .practice-hero{border-radius:22px;border:1px solid #282e25;background:radial-gradient(ellipse at top,#202a19,#0d100c 72%);padding:18px 10px}
-.practice-hero h1{letter-spacing:-.08em}
+.practice-hero h1{letter-spacing:normal}
 .practice-panel{border-color:var(--line)}
 .mode-switch{gap:4px;padding:4px;border-radius:15px;background:#10120f}
 .mode-switch button{font-size:.83rem;min-height:44px;padding-inline:5px;border-color:transparent}
