@@ -15,24 +15,32 @@
 <main id="home">
   <p class="eyebrow">DARTS TRAINING</p>
   <h1>At the oche.</h1>
-  <button class="card" data-mode="perfect"><strong>PERFECT 501</strong><span>501 exam and solo · 301 · 121 checkout</span></button>
-  <button class="card" data-mode="mark"><strong>Bull &amp; Mark</strong><span>13 timed phases · 20 down to 15</span></button>
-  <button class="card" data-mode="race"><strong>Bull Race</strong><span>Race by visit or count individual bulls</span></button>
+  <button class="card" data-mode="perfect"><strong>PERFECT 501</strong><span>Five attempts · Eight visits each</span></button>
+  <button class="card" data-mode="solo"><strong>501 Solo</strong><span>One leg · Eight visits</span></button>
+  <button class="card" data-mode="301"><strong>301 Checkout</strong><span>Double out · Open practice</span></button>
+  <button class="card" data-mode="ladder"><strong>121 Checkout</strong><span>Nine darts per target</span></button>
+  <button class="card" data-mode="mark"><strong>Bull &amp; Mark</strong><span>13 timed laps</span></button>
+  <button class="card" data-mode="race"><strong>Bull Race</strong><span>Count bulls by visit</span></button>
+  <button class="card" data-mode="counter"><strong>Bull Counter</strong><span>Tap once per bull</span></button>
 </main>
-<main id="history" hidden><h1>History</h1><label>Practice mode <select id="filter"><option value="">All modes</option><option value="perfect">PERFECT 501</option><option value="mark">Bull &amp; Mark</option><option value="race">Bull Race</option></select></label><div id="log"></div></main>
-<main id="insights" hidden><h1>Insights</h1><p>Completed sessions on this browser</p><div id="metrics"></div></main>
+<main id="insights" hidden><h1>Insights</h1><label>Practice mode <select id="filter"><option value="">All modes</option><option value="perfect">PERFECT 501</option><option value="solo">501 Solo</option><option value="301">301 Checkout</option><option value="ladder">121 Checkout</option><option value="mark">Bull &amp; Mark</option><option value="race">Bull Race</option><option value="counter">Bull Counter</option></select></label><div id="metrics"></div><h2>Session history</h2><div id="log"></div><button data-reset-history>Reset history</button></main>
 <main id="settings" hidden>
   <h1>Settings</h1>
   <label>Bull Race target <input id="target-setting" type="number" min="1" max="999" step="1" value="50"></label>
-  <label><input id="audio-setting" type="checkbox"> Bull Race sound</label>
-  <label><input id="haptics-setting" type="checkbox"> Bull Race vibration</label>
+  <label><input id="audio-setting" type="checkbox"> Bull counting sound</label>
+  <label><input id="haptics-setting" type="checkbox"> Bull counting vibration</label>
+  <label><input id="hints-setting" type="checkbox"> Checkout hints by default</label>
+  <label><input id="darts-setting" type="checkbox"> Start with individual dart entry</label>
+  <label><input id="laps-setting" type="checkbox"> Show the current lap timer</label>
   <p>Settings and history are saved in this browser. Older records on a different website address stay with that address.</p>
   <button id="backup">Download unified history</button>
+  <button data-reset-history>Reset history</button>
   <p id="settings-status" role="status"></p>
 </main>
 <main id="practice" hidden aria-label="Practice"></main>
 <nav class="tabs" id="tabs" aria-label="OCHE screens">
-  <button data-page="home" aria-current="page">Home</button><button data-page="history">History</button><button data-page="insights">Insights</button><button data-page="settings">Settings</button>
+  <button data-page="home" aria-current="page">Home</button><button data-page="insights">Insights</button><button data-page="settings">Settings</button>
 </nav>
+<dialog id="reset-dialog"><form method="dialog"><h2>Reset practice history?</h2><p>This clears saved sessions and stats on this browser. Settings and active drills stay.</p><div class="control-row"><button value="cancel" autofocus>Cancel</button><button value="reset" class="danger">Reset history</button></div></form></dialog>
 </body>
 </html>

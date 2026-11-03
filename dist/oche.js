@@ -3,6 +3,10 @@
 const byId = id => document.getElementById(id);
 const modes = {
   perfect: { label: 'PERFECT 501' },
+  solo: { label: '501 Solo' },
+  '301': { label: '301 Checkout' },
+  ladder: { label: '121 Checkout' },
+  counter: { label: 'Bull Counter' },
   mark: { label: 'Bull & Mark' },
   race: { label: 'Bull Race' }
 };
@@ -27,7 +31,9 @@ function sessions() {
       id: session.id, mode: 'perfect', date: Date.parse(session.date),
       result: session.complete ? session.game?.status === 'won' ? 'Cleared' : 'Failed' : 'Incomplete',
       complete: !!session.complete, variant: session.mode, assisted: session.assisted,
-      visits: sum(legs.map(leg => array(leg.visits).length)), attempts: legs.length
+      visits: sum(legs.map(leg => array(leg.visits).length)), attempts: legs.length,
+      points: sum(legs.flatMap(leg => array(leg.visits).map(v => v.score))),
+      darts: sum(legs.flatMap(leg => array(leg.throws).map(d => d.darts || 1)))
     };
   });
   const mark = array(read('oche.sessions.v1')).filter(session =>
@@ -68,12 +74,16 @@ function element(tag, value) {
   return node;
 }
 
+function sessionMode(s) {
+  if (s.mode === 'perfect') return s.variant === 'exam' ? 'perfect' : s.variant;
+  return s.variant === 'counter' ? 'counter' : s.mode;
+}
+
 function showHistory(records) {
-  const filter = byId('filter').value;
   const best = Math.min(...records.filter(s => s.mode === 'mark').map(s => s.durationMs));
-  const entries = records.filter(s => !filter || s.mode === filter).map(session => {
+  const entries = records.map(session => {
     const row = document.createElement('details');
-    const summary = element('summary', modes[session.mode].label);
+    const summary = element('summary', (modes[sessionMode(session)] || modes[session.mode]).label);
     const date = Number.isFinite(session.date) ? new Date(session.date).toLocaleString() : 'Date unavailable';
     summary.append(element('span', `${date} · ${session.result}`));
     row.append(summary);
@@ -96,25 +106,46 @@ function showHistory(records) {
 }
 
 function showInsights(records) {
-  const exams = records.filter(s => s.mode === 'perfect' && s.variant === 'exam' && s.complete && !s.assisted);
+  const exams = records.filter(s => sessionMode(s) === 'perfect');
+  const complete = exams.filter(s => s.complete);
+  const unassisted = complete.filter(s => !s.assisted);
+  const clears = complete.filter(s => s.result === 'Cleared');
+  const scored = exams.filter(s => Number.isFinite(s.points) && s.darts > 0);
   const drills = records.filter(s => s.mode === 'mark');
-  const races = records.filter(s => s.mode === 'race' && s.complete && s.visits > 0);
+  const races = records.filter(s => sessionMode(s) === 'race' && s.visits > 0);
+  const counters = records.filter(s => sessionMode(s) === 'counter');
   const visits = sum(races.map(s => s.visits));
-  const metrics = [
-    ['PERFECT 501', exams.length ? `${exams.filter(s => s.result === 'Cleared').length}/${exams.length} unassisted mock exams cleared` : 'Complete an unassisted mock exam to see your clear rate.'],
-    ['Bull & Mark', drills.length ? `Best ${duration(Math.min(...drills.map(s => s.durationMs)))} · Average ${duration(sum(drills.map(s => s.durationMs)) / drills.length)} · ${drills.length} runs` : 'Complete a drill to set your first time.'],
-    ['Bull Race', visits ? `${(sum(races.map(s => s.hits)) / visits).toFixed(2)} bulls per visit · ${Math.round(100 * sum(races.map(s => s.blanks || 0)) / visits)}% blank visits · ${sum(races.map(s => s.hatTricks || 0))} hat tricks` : 'Reach a race target to see your visit stats.']
-  ];
+  const metrics = [];
+  if (exams.length) {
+    const lines = [`${clears.length}/${complete.length} completed exams cleared · ${exams.length - complete.length} incomplete`];
+    if (unassisted.length) lines.push(`Unassisted: ${unassisted.filter(s => s.result === 'Cleared').length}/${unassisted.length} cleared`);
+    if (clears.length) lines.push(`Best clear: attempt ${Math.min(...clears.map(s => s.attempts))}`);
+    if (scored.length) lines.push(`Three-dart average: ${(3 * sum(scored.map(s => s.points)) / sum(scored.map(s => s.darts))).toFixed(1)}`);
+    metrics.push(['PERFECT 501', lines]);
+  }
+  for (const mode of ['solo', '301', 'ladder']) {
+    const results = records.filter(s => sessionMode(s) === mode);
+    if (!results.length) continue;
+    const best = Math.max(0, ...results.map(s => s.highestCheckout || 0));
+    const lines = mode === 'ladder'
+      ? [`${results.length} saved ladders · Best checkout ${best || '—'}`]
+      : [`${results.filter(s => s.result === 'Cleared').length} cleared · ${results.length} saved legs`];
+    metrics.push([modes[mode].label, lines]);
+  }
+  if (drills.length) metrics.push(['Bull & Mark', [`Best ${duration(Math.min(...drills.map(s => s.durationMs)))} · Average ${duration(sum(drills.map(s => s.durationMs)) / drills.length)} · ${drills.length} runs`]]);
+  if (visits) metrics.push(['Bull Race', [`${(sum(races.map(s => s.hits)) / visits).toFixed(2)} bulls per visit · ${Math.round(100 * sum(races.map(s => s.blanks || 0)) / visits)}% blank visits`, `${sum(races.map(s => s.hatTricks || 0))} hat tricks · ${races.filter(s => s.complete).length} targets reached`]]);
+  if (counters.length) metrics.push(['Bull Counter', [`${sum(counters.map(s => s.hits))} bulls · ${counters.length} sessions · Best ${Math.max(...counters.map(s => s.hits))}`]]);
+  if (!metrics.length) metrics.push(['No stats yet', ['Save a session in this mode to see your stats.']]);
   byId('metrics').replaceChildren(...metrics.map(([label, value]) => {
     const card = document.createElement('article');
-    card.append(element('strong', label), element('p', value));
+    card.append(element('strong', label), ...value.map(line => element('p', line)));
     return card;
   }));
 }
 
 
 let current = 'home';
-const pages = ['home', 'history', 'insights', 'settings', 'practice'];
+const pages = ['home', 'insights', 'settings', 'practice'];
 
 function navigate(page, mode) {
   current = page;
@@ -130,11 +161,18 @@ function navigate(page, mode) {
 }
 
 function refresh() {
-  if (current === 'history') showHistory(sessions());
-  if (current === 'insights') showInsights(sessions());
+  if (current === 'insights') {
+    const filter = byId('filter').value;
+    const records = sessions().filter(s => !filter || sessionMode(s) === filter);
+    showInsights(records);
+    showHistory(records);
+  }
   if (current === 'settings') {
     byId('target-setting').value = read('s_target') || 50;
     byId('audio-setting').checked = read('s_audio') !== 0;
+    byId('hints-setting').checked = !!read('oche-hints');
+    byId('darts-setting').checked = !!read('oche-dart-default');
+    byId('laps-setting').checked = read('oche-show-lap') !== 0;
     byId('haptics-setting').checked = read('s_haptics') !== 0;
   }
 }
@@ -151,7 +189,10 @@ window.addEventListener('storage', refresh);
 for (const [id, key] of [
   ['target-setting', 's_target'],
   ['audio-setting', 's_audio'],
-  ['haptics-setting', 's_haptics']
+  ['haptics-setting', 's_haptics'],
+  ['hints-setting', 'oche-hints'],
+  ['darts-setting', 'oche-dart-default'],
+  ['laps-setting', 'oche-show-lap']
 ]) {
   byId(id).onchange = event => {
     const input = event.target;
@@ -175,4 +216,21 @@ byId('backup').onclick = () => {
   link.download = 'oche-history.json';
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+
+const resetDialog = byId('reset-dialog');
+document.querySelectorAll('[data-reset-history]').forEach(button => {
+  button.onclick = () => { resetDialog.returnValue = ''; resetDialog.showModal(); };
+});
+resetDialog.onclose = () => {
+  if (resetDialog.returnValue !== 'reset') return;
+  try {
+    const legacy = read('oche-perfect-v1');
+    if (legacy?.history) localStorage.setItem('oche-perfect-v1', JSON.stringify({ ...legacy, history: [] }));
+    for (const key of ['oche-unified-v1', 'oche.sessions.v1', 'ocheHistory']) localStorage.removeItem(key);
+    byId('settings-status').textContent = 'Practice history reset.';
+  } catch {
+    byId('settings-status').textContent = 'Browser storage is unavailable.';
+  }
+  refresh();
 };

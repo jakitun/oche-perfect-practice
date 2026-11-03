@@ -56,9 +56,25 @@ function hero(kicker, value, caption) {
   return group('practice-hero', element('p', kicker), element('h1', value), element('p', caption));
 }
 
+const scoringModes = { perfect: 'exam', solo: 'solo', '301': '301', ladder: 'ladder' };
+const scoringDrafts = new Map();
 function renderPractice(mode) {
+  const variant = scoringModes[mode];
+  if (activeMode !== mode) {
+    if (scoringModes[activeMode]) scoringDrafts.set(exam.variant, { exam, undo, typed, inputMode });
+    if (variant) {
+      const draft = scoringDrafts.get(variant);
+      const stored = read('oche-active-perfect-' + variant);
+      const fallback = read('oche-active-perfect');
+      exam = draft?.exam || stored || (fallback?.variant === variant ? fallback : exam.variant === variant ? exam : freshExam(variant));
+      undo = draft?.undo || [];
+      typed = draft?.typed || '';
+      inputMode = draft?.inputMode || ((exam.game.dart && exam.game.status === 'playing') || read('oche-dart-default') ? 'dart' : 'total');
+    }
+    error = '';
+  }
   activeMode = mode;
-  const content = { perfect: perfectScreen, mark: markScreen, race: raceScreen }[mode]();
+  const content = (variant ? perfectScreen : { mark: markScreen, race: raceScreen, counter: counterScreen }[mode])();
   const status = element('p', error);
   status.className = 'practice-status';
   status.setAttribute('role', 'status');
@@ -76,13 +92,15 @@ function examRecord(result, complete) {
     id: exam.id, mode: 'perfect', result, complete, variant: exam.variant,
     assisted: exam.assisted, durationMs: exam.start ? Date.now() - exam.start : null,
     visits: sum(legs.map(leg => leg.visits.length)), attempts: legs.length,
+    points: sum(legs.flatMap(leg => leg.visits.map(visit => visit.score))),
+    darts: sum(legs.flatMap(leg => leg.throws.map(dart => dart.darts || 1))),
     highestCheckout: exam.variant === 'ladder' ? Math.max(0, ...legs.filter(leg => leg.status === 'won').map(leg => leg.visits[0].start)) : undefined
   };
 }
 
 function saveExam() {
   if (examTerminal()) archive(examRecord(exam.game.status === 'won' ? 'Cleared' : 'Failed', true));
-  storeValue('oche-active-perfect', exam);
+  storeValue('oche-active-perfect-' + exam.variant, exam);
 }
 
 function score(next) {
@@ -126,8 +144,6 @@ function perfectScreen() {
     game.remaining,
     `Round ${game.round}${exam.variant === "301" ? "" : " / " + (game.maxRounds ?? 8)} · Open in / double out · Split bull`
   ));
-  const variants = [['exam','501 Exam'],['solo','501 Solo'],['301','301'],['ladder','121 Checkout']];
-  screen.prepend(group('control-row mode-switch', ...variants.map(([variant,label]) => control(label, () => { if (variant !== exam.variant) startExam(variant); }, variant === exam.variant ? 'selected' : ''))));
   if (game.status !== 'playing') {
     screen.append(group('practice-panel',
       element('h2', game.status === 'won' ? 'Cleared' : examTerminal() ? 'Practice complete' : 'Attempt ended'),
@@ -231,11 +247,17 @@ function markScreen() {
   const screen = group('practice-stack', hero(
     finished ? '13 / 13 COMPLETE' : `PHASE ${index + 1} / 13`,
     finished ? 'Finished' : target.startsWith('Bull') ? 'Bull' : target,
-    finished ? 'Bull & Mark' : target.startsWith('Bull') ? 'Hit 2 bulls' : 'Hit 5 marks'
+    finished ? 'Bull & Mark' : ''
   ));
   const timer = element('strong', duration(elapsed));
   timer.id = 'mark-clock';
-  screen.append(group('practice-panel drill-clock', element('span', 'SESSION TIME'), timer));
+  const clock = group('practice-panel drill-clock', element('span', 'SESSION TIME'), timer);
+  if (mark && !finished && read('oche-show-lap') !== 0) {
+    const lap = element('span', duration(Math.max(0, (mark.pausedAt || Date.now()) - mark.lap)));
+    lap.id = 'lap-clock';
+    clock.append(group('lap-clock-row', element('span', 'Current lap'), lap));
+  }
+  screen.append(clock);
   const advance = control(finished ? 'New drill' : !mark ? 'Start drill' : index === phases.length - 1 ? 'Finish drill' : 'Next phase', () => {
     const now = Date.now();
     if (!mark || finished) {
@@ -264,12 +286,12 @@ function markScreen() {
     storeValue('oche-active-mark', mark);
   }));
   if (mark?.splits.length) {
-    const splits = document.createElement('details');
     const times = document.createElement('dl');
-    mark.splits.forEach((time, i) => times.append(element('dt', phases[i]), element('dd', duration(time))));
-    splits.open = finished;
-    splits.append(element('summary', 'Phase times'), times);
-    screen.append(splits);
+    times.className = 'lap-list';
+    mark.splits.map((time, i) => [time, i]).reverse().forEach(([time, i]) => {
+      times.append(element('dt', `Lap ${i + 1} · ${phases[i]}`), element('dd', duration(time)));
+    });
+    screen.append(group('lap-panel', element('h2', 'Laps'), times));
   }
   if (mark && !finished) screen.append(control('Discard run', () => {
     if (!confirm('Discard this run?')) return;
@@ -282,7 +304,10 @@ function markScreen() {
 setInterval(() => {
   const clock = byId('mark-clock');
   if (current === 'practice' && activeMode === 'mark' && clock && mark && !mark.pausedAt && mark.splits.length < phases.length) {
-    clock.textContent = duration(Math.max(0, Date.now() - mark.start));
+    const now = Date.now();
+    clock.textContent = duration(Math.max(0, now - mark.start));
+    const lap = byId('lap-clock');
+    if (lap) lap.textContent = duration(Math.max(0, now - mark.lap));
   }
 }, 100);
 
@@ -320,11 +345,10 @@ function saveRace() {
 }
 
 let counter = read('oche-active-counter') || { hits: 0, start: null };
-let raceView = 'visits';
 function counterScreen() {
   const save = () => storeValue('oche-active-counter', counter);
   const screen = group('practice-stack', hero('BULL COUNTER', counter.hits, 'Tap once for each bull'),
-    control('+1 Bull', () => { counter.start ||= Date.now(); counter.hits++; save(); }, 'primary big-action counter-button'));
+    control('+1 Bull', () => { counter.start ||= Date.now(); counter.hits++; save(); raceFeedback(1); }, 'big-action counter-button'));
   const undo = control('Undo', () => { counter.hits--; save(); });
   const end = control('Save & reset', () => {
     archive({ id: crypto.randomUUID(), mode: 'race', variant: 'counter', result: 'Count saved', complete: true, hits: counter.hits, durationMs: Date.now() - counter.start });
@@ -336,8 +360,6 @@ function counterScreen() {
 }
 
 function raceScreen() {
-  const tabs = group('control-row mode-switch', ...[['visits','By visit'],['counter','Simple counter']].map(([view,label]) => control(label, () => { raceView = view; }, view === raceView ? 'selected' : '')));
-  if (raceView === 'counter') { const screen = counterScreen(); screen.prepend(tabs); return screen; }
   const target = race?.target || read('s_target') || 50;
   const rounds = race?.rounds || [];
   const hits = sum(rounds);
@@ -345,7 +367,6 @@ function raceScreen() {
     race?.end ? (hits >= target ? 'TARGET REACHED' : 'SESSION ENDED') : `RACE TO ${target}`,
     hits, `${Math.max(0, target - hits)} bulls to go`
   ));
-  screen.prepend(tabs);
   const progress = document.createElement('progress');
   progress.max = target;
   progress.value = hits;
