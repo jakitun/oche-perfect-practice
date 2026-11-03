@@ -2,9 +2,9 @@
 
 const byId = id => document.getElementById(id);
 const modes = {
-  perfect: { label: 'PERFECT 501', url: 'perfect.html' },
-  mark: { label: 'Bull & Mark', url: 'mark/' },
-  race: { label: 'Bull Race', url: 'race/' }
+  perfect: { label: 'PERFECT 501' },
+  mark: { label: 'Bull & Mark' },
+  race: { label: 'Bull Race' }
 };
 const phases = ['Bull 1', '20', 'Bull 2', '19', 'Bull 3', '18', 'Bull 4', '17', 'Bull 5', '16', 'Bull 6', '15', 'Bull 7'];
 const sum = values => values.reduce((total, value) => total + value, 0);
@@ -51,7 +51,10 @@ function sessions() {
       blanks: session.miss, hatTricks: session.hats
     };
   });
-  return [...perfect, ...mark, ...race].sort((a, b) => (b.date || 0) - (a.date || 0));
+  const unified = array(read('oche-unified-v1'));
+  const keys = new Set(unified.map(s => s.mode + ':' + s.id));
+  const legacy = [...perfect, ...mark, ...race].filter(s => !keys.has(s.mode + ':' + s.id));
+  return [...unified, ...legacy].sort((a, b) => (b.date || 0) - (a.date || 0));
 }
 
 function duration(ms) {
@@ -107,7 +110,7 @@ function showInsights(records) {
   }));
 }
 
-const frames = {};
+
 let current = 'home';
 const pages = ['home', 'history', 'insights', 'settings', 'practice'];
 
@@ -120,14 +123,7 @@ function navigate(page, mode) {
     if (button.dataset.page === page) button.setAttribute('aria-current', 'page');
     else button.removeAttribute('aria-current');
   });
-  if (mode && !frames[mode]) {
-    const frame = document.createElement('iframe');
-    frame.title = modes[mode].label;
-    frame.src = modes[mode].url;
-    frames[mode] = frame;
-    byId('practice').append(frame);
-  }
-  Object.entries(frames).forEach(([name, frame]) => { frame.hidden = name !== mode; });
+  if (mode) renderPractice(mode);
   refresh();
 }
 
@@ -150,10 +146,10 @@ document.querySelectorAll('[data-mode]').forEach(button => {
 byId('filter').onchange = refresh;
 window.addEventListener('storage', refresh);
 
-for (const [id, key, property] of [
-  ['target-setting', 's_target', 'defaultTarget'],
-  ['audio-setting', 's_audio', 'audio'],
-  ['haptics-setting', 's_haptics', 'haptics']
+for (const [id, key] of [
+  ['target-setting', 's_target'],
+  ['audio-setting', 's_audio'],
+  ['haptics-setting', 's_haptics']
 ]) {
   byId(id).onchange = event => {
     const input = event.target;
@@ -161,11 +157,6 @@ for (const [id, key, property] of [
       Math.min(999, Math.max(1, Math.round(Number(input.value) || 50)));
     try {
       localStorage.setItem(key, String(Number(value)));
-      const race = frames.race?.contentWindow;
-      if (race?.settings) {
-        race.settings[property] = value;
-        race.render?.();
-      }
       byId('settings-status').textContent = 'Saved.';
     } catch {
       byId('settings-status').textContent = 'Browser storage is unavailable.';

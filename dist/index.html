@@ -6,7 +6,9 @@
 <meta name="theme-color" content="#000000">
 <title>OCHE · Darts Practice</title>
 <link rel="stylesheet" href="oche.css">
+<script src="engine.js" defer></script>
 <script src="oche.js" defer></script>
+<script src="practice.js" defer></script>
 </head>
 <body>
 <header><button data-page="home" class="brand" aria-label="OCHE home">◎ OCHE</button><span id="mode-label"></span></header>
@@ -28,7 +30,7 @@
   <button id="backup">Download unified history</button>
   <p id="settings-status" role="status"></p>
 </main>
-<section id="practice" hidden aria-label="Practice"></section>
+<main id="practice" hidden aria-label="Practice"></main>
 <nav class="tabs" id="tabs" aria-label="OCHE screens">
   <button data-page="home" aria-current="page">Home</button><button data-page="history">History</button><button data-page="insights">Insights</button><button data-page="settings">Settings</button>
 </nav>

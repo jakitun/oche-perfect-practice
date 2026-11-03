@@ -17,8 +17,6 @@ p,summary span,.card span{color:#bcbcbc}
 .tabs{justify-content:center;border:0;border-top:1px solid #292929;padding-bottom:env(safe-area-inset-bottom)}
 .tabs button{flex:1;max-width:9rem;background:none;border:0;padding-inline:4px}
 .tabs [aria-current]{color:var(--accent)}
-#practice{flex:1;min-height:0;display:flex}
-iframe{width:100%;height:100%;border:0}
 label{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0}
 input[type=number]{width:6rem}
 input[type=checkbox]{min-height:24px;width:24px;accent-color:var(--accent)}
@@ -27,3 +25,34 @@ summary{cursor:pointer;min-height:44px}
 summary span{display:block;margin:4px 0}
 dl{display:grid;grid-template-columns:1fr auto;gap:6px}
 dd{margin:0}
+
+/* All three practice modes share the same controls and score layout. */
+#practice{display:block}
+.practice-stack{display:grid;gap:12px}
+.practice-stack p,.practice-stack h2{margin:0}
+.practice-hero{padding:16px 0 12px;text-align:center}
+.practice-hero p:first-child,.drill-clock span,.entry-readout span{font-size:.75rem;letter-spacing:.15em;font-weight:800;color:var(--accent)}
+.practice-hero h1{font-size:clamp(4rem,16vw,7rem);line-height:1.03;margin:.08em 0;font-variant-numeric:tabular-nums}
+.practice-panel{display:grid;gap:10px;padding:12px;border:1px solid #292929;border-radius:16px;background:#101010}
+.control-row{display:flex;gap:6px;flex-wrap:wrap}
+.control-row button{flex:1;padding-inline:8px}
+button.primary{background:var(--accent);border-color:var(--accent);color:#111;font-weight:850}
+button.selected{color:var(--accent);border-color:var(--accent)}
+button:disabled{opacity:.42;cursor:default}
+.entry-readout{display:flex;align-items:center;justify-content:space-between}
+.entry-readout strong,.drill-clock strong{font-variant-numeric:tabular-nums;font-size:1.75rem}
+.score-grid,.dart-grid,.race-pad{display:grid;gap:6px}
+.score-grid{grid-template-columns:repeat(3,1fr)}
+.dart-grid{grid-template-columns:repeat(5,1fr)}
+.race-pad{grid-template-columns:repeat(4,1fr)}
+.score-grid button,.dart-grid button{font-weight:700;padding-inline:3px}
+.race-pad button{font-size:2rem;min-height:76px;padding-inline:4px}
+.practice-status{margin:.5rem 0 0;color:var(--accent)}
+.practice-status:empty{display:none}
+.drill-clock{text-align:center}
+button.big-action{min-height:70px;font-size:1.25rem}
+button.quiet-action{justify-self:center;background:none;color:#bcbcbc}
+.race-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;text-align:center}
+.race-stats strong{font-size:1.4rem}
+.race-stats span{font-size:.8rem;color:#bcbcbc}
+progress{width:100%;height:8px;accent-color:var(--accent)}
