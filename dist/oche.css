@@ -94,3 +94,29 @@ button.danger,[data-reset-history]{color:#ffaaa1}
 .split-trend dd{text-align:right}
 .split-trend .faster{color:var(--accent)}
 .split-trend .slower{color:#ffaaa1}
+
+/* Scoreboard styling shared across practice modes. */
+:root{--accent:#c6ed79;--line:#29322c}
+header,.tabs{background:#0b100d}
+.brand{letter-spacing:.12em}
+#mode-label{font-size:.85rem;color:#c2cec5}
+.card{background:#101a14;border-color:#25362a;border-radius:12px}
+.card:active{background:#213628}
+.practice-hero{background:#10271d;border-color:#284738;border-radius:14px;padding:18px 12px}
+.practice-hero h1{font-weight:850;letter-spacing:normal;font-variant-numeric:tabular-nums}
+.practice-hero p:last-child:empty{display:none}
+.practice-panel{background:#101512;border-radius:12px}
+.score-grid button,.dart-grid button,.race-pad button{background:#171d19;border-color:#303c33;font-variant-numeric:tabular-nums}
+button.primary{background:#17281a;color:var(--accent);border-color:#769050}
+button.primary:active,.score-grid button:active,.dart-grid button:active,.race-pad button:active{background:var(--accent);color:#10180c}
+.drill-clock strong,.entry-readout strong{color:var(--accent)}
+.lap-panel h2{color:#dce7df}
+@media(prefers-reduced-motion:no-preference){
+  button{transition:background-color 100ms ease,border-color 100ms ease,color 100ms ease}
+  .score-commit .practice-hero h1,.lap-commit .practice-hero h1{animation:oche-score-in 170ms ease-out}
+  .lap-commit .lap-list>:nth-child(-n+2){animation:oche-lap-in 200ms ease-out}
+  .milestone .practice-hero{animation:oche-milestone 360ms ease-out}
+}
+@keyframes oche-score-in{from{opacity:.55;transform:translateY(3px)}to{opacity:1;transform:none}}
+@keyframes oche-lap-in{from{opacity:.55;background:#203629}to{opacity:1;background:transparent}}
+@keyframes oche-milestone{from{border-color:var(--accent);background:#294b2d}to{border-color:#284738;background:#10271d}}

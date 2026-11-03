@@ -3,6 +3,7 @@
 const practice = byId('practice');
 let activeMode;
 let error = '';
+let feedbackMotion = '';
 let undo = [];
 let multiplier = 'S';
 let typed = '';
@@ -78,6 +79,8 @@ function renderPractice(mode) {
   const status = element('p', error);
   status.className = 'practice-status';
   status.setAttribute('role', 'status');
+  if (feedbackMotion) content.classList.add(feedbackMotion);
+  feedbackMotion = '';
   practice.replaceChildren(content, status);
 }
 
@@ -104,6 +107,7 @@ function saveExam() {
 }
 
 function score(next) {
+  feedbackMotion = next.status === 'won' || next.visits.at(-1)?.score === 180 && next.visits.length > exam.game.visits.length ? 'milestone' : 'score-commit';
   undo.push(structuredClone(exam));
   exam.start ||= Date.now();
   exam.game = next;
@@ -116,6 +120,7 @@ function undoScore() {
   if (!undo.length) return;
   const wasTerminal = examTerminal();
   exam = undo.pop();
+  feedbackMotion = 'score-commit';
   if (wasTerminal) {
     storeValue('oche-unified-v1', array(read('oche-unified-v1')).filter(s => s.mode !== 'perfect' || s.id !== exam.id));
   }
@@ -263,6 +268,7 @@ function markScreen() {
     if (!mark || finished) {
       mark = { id: crypto.randomUUID(), start: now, lap: now, splits: [] };
     } else {
+      feedbackMotion = index === phases.length - 1 ? 'milestone' : 'lap-commit';
       mark.splits.push(Math.max(0, now - mark.lap));
       mark.lap = now;
     }
@@ -348,7 +354,7 @@ let counter = read('oche-active-counter') || { hits: 0, start: null };
 function counterScreen() {
   const save = () => storeValue('oche-active-counter', counter);
   const screen = group('practice-stack', hero('BULL COUNTER', counter.hits, 'Tap once for each bull'),
-    control('+1 Bull', () => { counter.start ||= Date.now(); counter.hits++; save(); raceFeedback(1); }, 'big-action counter-button'));
+    control('+1 Bull', () => { counter.start ||= Date.now(); counter.hits++; feedbackMotion = 'score-commit'; save(); raceFeedback(1); }, 'big-action counter-button'));
   const undo = control('Undo', () => { counter.hits--; save(); });
   const end = control('Save & reset', () => {
     archive({ id: crypto.randomUUID(), mode: 'race', variant: 'counter', result: 'Count saved', complete: true, hits: counter.hits, durationMs: Date.now() - counter.start });
@@ -387,6 +393,7 @@ function raceScreen() {
       race ||= { id: crypto.randomUUID(), start: Date.now(), target, rounds: [], end: null };
       race.rounds.push(n);
       if (sum(race.rounds) >= target) race.end = Date.now();
+      feedbackMotion = race.end || n === 3 ? 'milestone' : 'score-commit';
       saveRace();
       raceFeedback(n);
     }))));
